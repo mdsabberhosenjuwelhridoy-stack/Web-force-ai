@@ -81,5 +81,34 @@ data class AdminConfigEntity(
     val freePlanGenerationsLimit: Int = 5,
     val proPlanGenerationsLimit: Int = 50,
     val businessPlanGenerationsLimit: Int = 9999,
-    val broadcastNotice: String = "⚡ WebForge AI 2.0 Engine is live! Fast multi-page website generation is active."
+    val broadcastNotice: String = "⚡ WebForge AI 2.0 Engine is live! Fast multi-page website generation is active.",
+    // Point Pricing & Rules controlled by Admin
+    val dailyFreePoints: Int = 5,
+    val monthlyBonusPoints: Int = 30,
+    val pointsPerGeneration: Int = 5,
+    val pointsPricePer100: Double = 5.0,
+    val proPlanPrice: Double = 19.0,
+    val businessPlanPrice: Double = 49.0,
+    val currency: String = "USD"
+)
+
+@Entity(
+    tableName = "users",
+    indices = [Index(value = ["email"], unique = true)]
+)
+data class UserEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val name: String,
+    val email: String,
+    val passwordHash: String,
+    val role: String = "USER", // "ADMIN", "USER", "DEVELOPER"
+    val plan: String = "FREE", // "FREE", "PRO", "BUSINESS"
+    val points: Int = 10,
+    val lastDailyClaim: Long = 0L,
+    val lastMonthlyClaim: Long = 0L,
+    val authProvider: String = "EMAIL", // "EMAIL", "GOOGLE"
+    val avatarColor: String = "#6366F1",
+    val isActive: Boolean = true,
+    val createdAt: Long = System.currentTimeMillis()
 )

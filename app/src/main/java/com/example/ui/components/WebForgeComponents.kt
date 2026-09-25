@@ -32,12 +32,17 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Paid
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RocketLaunch
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -63,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.data.local.entity.ProjectFileEntity
+import com.example.data.local.entity.UserEntity
 import com.example.data.model.AppStrings
 import com.example.data.model.GenerationStep
 import com.example.data.model.Language
@@ -77,6 +83,7 @@ enum class AppDestination(val route: String) {
     PROJECTS("projects"),
     TEMPLATES("templates"),
     DEPLOYMENTS("deployments"),
+    SETTINGS("settings"),
     ADMIN("admin"),
     BILLING("billing")
 }
@@ -86,105 +93,189 @@ enum class AppDestination(val route: String) {
 fun WebForgeTopBar(
     currentLanguage: Language,
     userPlan: SubscriptionPlan,
+    currentUser: UserEntity? = null,
     onLanguageChange: (Language) -> Unit,
-    onNavigateDestination: (AppDestination) -> Unit
+    onNavigateDestination: (AppDestination) -> Unit,
+    onOpenAuth: () -> Unit = {},
+    onLogout: () -> Unit = {},
+    onOpenProfileDrawer: () -> Unit = {}
 ) {
     var langMenuExpanded by remember { mutableStateOf(false) }
+    var workspaceMenuExpanded by remember { mutableStateOf(false) }
+
+    val userFirstName = currentUser?.name?.split(" ")?.firstOrNull() ?: "Juwel"
+    val workspaceLabel = "${userFirstName}'s Lovable"
+    val isBn = currentLanguage == Language.BN
 
     TopAppBar(
         title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .clickable { onNavigateDestination(AppDestination.DASHBOARD) }
-                    .testTag("topbar_brand_logo")
-            ) {
-                Box(
+            // Workspace selector pill (Matches Screenshot 1 & 2)
+            Box {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color.White,
+                    shadowElevation = 2.dp,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
                     modifier = Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(IndigoPrimary),
-                    contentAlignment = Alignment.Center
+                        .clickable { workspaceMenuExpanded = true }
+                        .testTag("topbar_workspace_pill")
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = "Logo",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF9A3412)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = userFirstName.take(1).uppercase(),
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = workspaceLabel,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF111827)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "↕",
+                            fontSize = 12.sp,
+                            color = Color(0xFF6B7280)
+                        )
+                    }
                 }
-                Column {
-                    Text(
-                        text = AppStrings.get("app_title", currentLanguage),
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = (-0.5).sp
-                        )
+
+                // Workspace Dropdown Menu (Matches Screenshot 2)
+                DropdownMenu(
+                    expanded = workspaceMenuExpanded,
+                    onDismissRequest = { workspaceMenuExpanded = false },
+                    modifier = Modifier.width(220.dp)
+                ) {
+                    // Top Credits item: "♡ Credits: 5 left"
+                    DropdownMenuItem(
+                        text = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text("♡", fontSize = 16.sp, color = Color(0xFF6B7280))
+                                Text(
+                                    text = if (isBn) "ক্রেডিট: ${currentUser?.points ?: 5} বাকি" else "Credits: ${currentUser?.points ?: 5} left",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF111827)
+                                )
+                            }
+                        },
+                        onClick = {
+                            workspaceMenuExpanded = false
+                            onNavigateDestination(AppDestination.BILLING)
+                        },
+                        modifier = Modifier.testTag("workspace_menu_credits_item")
                     )
+
+                    HorizontalDivider(color = Color(0xFFF3F4F6))
+
+                    // All workspaces header
                     Text(
-                        text = "AI Website Builder Platform",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            fontSize = 9.sp
-                        )
+                        text = if (isBn) "সকল ওয়ার্কস্পেস" else "All workspaces",
+                        fontSize = 11.sp,
+                        color = Color(0xFF6B7280),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                    )
+
+                    // Active workspace
+                    DropdownMenuItem(
+                        text = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(Color(0xFF9A3412)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(userFirstName.take(1).uppercase(), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    Text(workspaceLabel, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                                Text("✓", color = Color(0xFF374151), fontSize = 14.sp)
+                            }
+                        },
+                        onClick = { workspaceMenuExpanded = false }
+                    )
+
+                    HorizontalDivider(color = Color(0xFFF3F4F6))
+
+                    // Workspace settings
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("⚙", fontSize = 14.sp)
+                                Text(if (isBn) "ওয়ার্কস্পেস সেটিংস" else "Workspace settings", fontSize = 13.sp)
+                            }
+                        },
+                        onClick = {
+                            workspaceMenuExpanded = false
+                            onNavigateDestination(AppDestination.SETTINGS)
+                        },
+                        modifier = Modifier.testTag("workspace_menu_settings_item")
+                    )
+
+                    // New workspace
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("+", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                Text(if (isBn) "নতুন ওয়ার্কস্পেস" else "New workspace", fontSize = 13.sp)
+                            }
+                        },
+                        onClick = { workspaceMenuExpanded = false }
+                    )
+
+                    // Find workspaces
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("🌐", fontSize = 14.sp)
+                                Text(if (isBn) "ওয়ার্কস্পেস খুঁজুন" else "Find workspaces", fontSize = 13.sp)
+                            }
+                        },
+                        onClick = { workspaceMenuExpanded = false }
                     )
                 }
             }
         },
         actions = {
-            // Plan Badge
-            Surface(
-                color = when (userPlan) {
-                    SubscriptionPlan.FREE -> MaterialTheme.colorScheme.surfaceVariant
-                    SubscriptionPlan.PRO -> IndigoPrimary.copy(alpha = 0.2f)
-                    SubscriptionPlan.BUSINESS -> CyanAccent.copy(alpha = 0.2f)
-                },
-                shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    when (userPlan) {
-                        SubscriptionPlan.FREE -> MaterialTheme.colorScheme.outline
-                        SubscriptionPlan.PRO -> IndigoPrimary
-                        SubscriptionPlan.BUSINESS -> CyanAccent
-                    }
-                ),
-                modifier = Modifier
-                    .clickable { onNavigateDestination(AppDestination.BILLING) }
-                    .testTag("plan_badge")
-            ) {
-                Text(
-                    text = userPlan.title,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = when (userPlan) {
-                            SubscriptionPlan.FREE -> MaterialTheme.colorScheme.onSurface
-                            SubscriptionPlan.PRO -> IndigoPrimary
-                            SubscriptionPlan.BUSINESS -> CyanAccent
-                        }
-                    )
-                )
-            }
-
-            Spacer(modifier = Modifier.width(6.dp))
-
-            // Language Selector Button
+            // Language selector button
             Box {
                 IconButton(
                     onClick = { langMenuExpanded = true },
-                    modifier = Modifier.testTag("language_toggle_btn")
+                    modifier = Modifier.size(34.dp).testTag("topbar_lang_btn")
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Language,
-                            contentDescription = "Language",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Language,
+                        contentDescription = "Language",
+                        tint = Color(0xFF4B5563),
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
                 DropdownMenu(
                     expanded = langMenuExpanded,
@@ -196,21 +287,53 @@ fun WebForgeTopBar(
                                 Text(
                                     text = "${lang.nativeName} (${lang.displayName})",
                                     fontWeight = if (lang == currentLanguage) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (lang == currentLanguage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    color = if (lang == currentLanguage) IndigoPrimary else MaterialTheme.colorScheme.onSurface
                                 )
                             },
                             onClick = {
                                 onLanguageChange(lang)
                                 langMenuExpanded = false
-                            },
-                            modifier = Modifier.testTag("lang_option_${lang.code}")
+                            }
                         )
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            // User Profile Avatar Button (Matches Screenshot 1 & 2 blue circle "J")
+            if (currentUser != null) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color(0xFF2563EB), // Vibrant Lovable blue
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clickable { onOpenProfileDrawer() }
+                        .testTag("topbar_profile_avatar_btn")
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = userFirstName.take(1).uppercase(),
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            } else {
+                Button(
+                    onClick = onOpenAuth,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+                    shape = RoundedCornerShape(16.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.height(34.dp).testTag("topbar_signin_btn")
+                ) {
+                    Text(if (isBn) "লগইন" else "Sign In", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = Color.Transparent,
             titleContentColor = MaterialTheme.colorScheme.onSurface
         ),
         modifier = Modifier.testTag("webforge_top_app_bar")
@@ -223,53 +346,75 @@ fun WebForgeBottomBar(
     currentLanguage: Language,
     onNavigate: (AppDestination) -> Unit
 ) {
-    NavigationBar(
-        containerColor = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier.testTag("webforge_bottom_nav_bar")
+    // Floating Lovable Pill Bottom Bar (Matches Screenshot 1)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 16.dp),
+        contentAlignment = Alignment.Center
     ) {
-        NavigationBarItem(
-            selected = currentDestination == AppDestination.DASHBOARD,
-            onClick = { onNavigate(AppDestination.DASHBOARD) },
-            icon = { Icon(Icons.Default.Dashboard, contentDescription = "Dashboard") },
-            label = { Text(AppStrings.get("nav_dashboard", currentLanguage), fontSize = 10.sp) },
-            modifier = Modifier.testTag("nav_btn_dashboard")
-        )
-        NavigationBarItem(
-            selected = currentDestination == AppDestination.PROJECTS,
-            onClick = { onNavigate(AppDestination.PROJECTS) },
-            icon = { Icon(Icons.Default.Folder, contentDescription = "Projects") },
-            label = { Text(AppStrings.get("nav_projects", currentLanguage), fontSize = 10.sp) },
-            modifier = Modifier.testTag("nav_btn_projects")
-        )
-        NavigationBarItem(
-            selected = currentDestination == AppDestination.TEMPLATES,
-            onClick = { onNavigate(AppDestination.TEMPLATES) },
-            icon = { Icon(Icons.Default.Layers, contentDescription = "Templates") },
-            label = { Text(AppStrings.get("nav_templates", currentLanguage), fontSize = 10.sp) },
-            modifier = Modifier.testTag("nav_btn_templates")
-        )
-        NavigationBarItem(
-            selected = currentDestination == AppDestination.DEPLOYMENTS,
-            onClick = { onNavigate(AppDestination.DEPLOYMENTS) },
-            icon = { Icon(Icons.Default.RocketLaunch, contentDescription = "Deploy") },
-            label = { Text(AppStrings.get("nav_deployments", currentLanguage), fontSize = 10.sp) },
-            modifier = Modifier.testTag("nav_btn_deployments")
-        )
-        NavigationBarItem(
-            selected = currentDestination == AppDestination.ADMIN,
-            onClick = { onNavigate(AppDestination.ADMIN) },
-            icon = { Icon(Icons.Default.AdminPanelSettings, contentDescription = "Admin") },
-            label = { Text(AppStrings.get("nav_admin", currentLanguage), fontSize = 10.sp) },
-            modifier = Modifier.testTag("nav_btn_admin")
-        )
-        NavigationBarItem(
-            selected = currentDestination == AppDestination.BILLING,
-            onClick = { onNavigate(AppDestination.BILLING) },
-            icon = { Icon(Icons.Default.Paid, contentDescription = "Billing") },
-            label = { Text(AppStrings.get("nav_billing", currentLanguage), fontSize = 10.sp) },
-            modifier = Modifier.testTag("nav_btn_billing")
-        )
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = Color(0xFFFCE7F3).copy(alpha = 0.85f), // Soft translucent Lovable pink pill
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFBCFE8)),
+            shadowElevation = 8.dp,
+            modifier = Modifier
+                .height(54.dp)
+                .testTag("floating_bottom_bar")
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Home (Selected pill button)
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (currentDestination == AppDestination.DASHBOARD) Color(0xFF1E1B4B) else Color.Transparent,
+                    modifier = Modifier
+                        .clickable { onNavigate(AppDestination.DASHBOARD) }
+                        .testTag("nav_btn_home")
+                ) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Dashboard,
+                            contentDescription = "Home",
+                            tint = if (currentDestination == AppDestination.DASHBOARD) Color.White else Color(0xFF4B5563),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                // Grid / Projects icon
+                IconButton(
+                    onClick = { onNavigate(AppDestination.PROJECTS) },
+                    modifier = Modifier.testTag("nav_btn_projects")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Layers,
+                        contentDescription = "Projects",
+                        tint = if (currentDestination == AppDestination.PROJECTS) Color(0xFF1E1B4B) else Color(0xFF4B5563),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                // Chat / Workspace icon
+                IconButton(
+                    onClick = { onNavigate(AppDestination.WORKSPACE) },
+                    modifier = Modifier.testTag("nav_btn_chat")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Code,
+                        contentDescription = "Workspace Chat",
+                        tint = if (currentDestination == AppDestination.WORKSPACE) Color(0xFF1E1B4B) else Color(0xFF4B5563),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+        }
     }
 }
 

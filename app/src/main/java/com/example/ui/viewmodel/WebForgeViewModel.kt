@@ -7,6 +7,7 @@ import com.example.data.local.entity.AdminConfigEntity
 import com.example.data.local.entity.ChatMessageEntity
 import com.example.data.local.entity.ProjectEntity
 import com.example.data.local.entity.ProjectFileEntity
+import com.example.data.local.entity.UserEntity
 import com.example.data.model.GenerationStep
 import com.example.data.model.Language
 import com.example.data.model.WebsiteType
@@ -49,6 +50,12 @@ class WebForgeViewModel(application: Application) : AndroidViewModel(application
     val adminConfig: StateFlow<AdminConfigEntity?> = repository.adminConfig
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    val allUsers: StateFlow<List<UserEntity>> = repository.allUsers
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _currentUser = MutableStateFlow<UserEntity?>(null)
+    val currentUser: StateFlow<UserEntity?> = _currentUser.asStateFlow()
+
     private val _currentLanguage = MutableStateFlow(Language.BN)
     val currentLanguage: StateFlow<Language> = _currentLanguage.asStateFlow()
 
@@ -88,6 +95,17 @@ class WebForgeViewModel(application: Application) : AndroidViewModel(application
     init {
         viewModelScope.launch {
             repository.initDefaultsIfNeeded()
+            // Auto login default admin / owner user
+            val defaultUser = repository.getUserByEmail("mdsabberhosenjuwel@gmail.com")
+                ?: repository.getUserByEmail("admin@webforge.ai")
+            _currentUser.value = defaultUser
+            defaultUser?.let {
+                _userPlan.value = when (it.plan.uppercase()) {
+                    "PRO" -> SubscriptionPlan.PRO
+                    "BUSINESS" -> SubscriptionPlan.BUSINESS
+                    else -> SubscriptionPlan.FREE
+                }
+            }
         }
     }
 
@@ -125,6 +143,19 @@ class WebForgeViewModel(application: Application) : AndroidViewModel(application
         onComplete: (Long) -> Unit
     ) {
         viewModelScope.launch {
+            val user = _currentUser.value
+            if (user != null) {
+                val deductResult = repository.deductPointsForGeneration(user.id)
+                if (deductResult.isFailure) {
+                    val errMsg = deductResult.exceptionOrNull()?.message ?: "পয়েন্ট শেষ! প্রো সাবস্ক্রিপশন কিনুন।"
+                    _toastMessage.value = errMsg
+                    return@launch
+                }
+                // Refresh updated points
+                val updatedUser = repository.getUserById(user.id)
+                _currentUser.value = updatedUser
+            }
+
             _isGenerating.value = true
             // Animate realistic 7-stage workflow
             val steps = GenerationStep.values()
@@ -142,7 +173,7 @@ class WebForgeViewModel(application: Application) : AndroidViewModel(application
             _isGenerating.value = false
             _currentGenStep.value = null
             selectProject(newId)
-            _toastMessage.value = "Website generated successfully!"
+            _toastMessage.value = if (_currentLanguage.value == Language.BN) "৫ পয়েন্ট খরচ করে ওয়েবসাইট তৈরি হয়েছে!" else "Website generated (-5 points)!"
             onComplete(newId)
         }
     }
@@ -309,5 +340,201 @@ class WebForgeViewModel(application: Application) : AndroidViewModel(application
         }
 
         return renderedHtml
+    }
+
+    fun login(email: String, password: String, onResult: (Boolean, String) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val user = repository.login(email, password)
+            if (user != null) {
+                if (!user.isActive) {
+                    val errMsg = if (_currentLanguage.value == Language.BN) "এই অ্যাকাউন্টটি নিষ্ক্রিয় করা হয়েছে!" else "This account is disabled!"
+                    _toastMessage.value = errMsg
+                    onResult(false, errMsg)
+                    return@launch
+                }
+                _currentUser.value = user
+                _userPlan.value = when (user.plan.uppercase()) {
+                    "PRO" -> SubscriptionPlan.PRO
+                    "BUSINESS" -> SubscriptionPlan.BUSINESS
+                    else -> SubscriptionPlan.FREE
+                }
+                val successMsg = if (_currentLanguage.value == Language.BN) "স্বাগতম, ${user.name}!" else "Welcome back, ${user.name}!"
+                _toastMessage.value = successMsg
+                onResult(true, successMsg)
+            } else {
+                val errMsg = if (_currentLanguage.value == Language.BN) "ভুল ইমেইল বা পাসওয়ার্ড!" else "Invalid email or password!"
+                _toastMessage.value = errMsg
+                onResult(false, errMsg)
+            }
+        }
+    }
+
+    fun register(
+        name: String,
+        email: String,
+        password: String,
+        role: String = "USER",
+        plan: String = "FREE",
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            val result = repository.registerUser(name, email, password, role, plan)
+            result.onSuccess { user ->
+                _currentUser.value = user
+                _userPlan.value = when (user.plan.uppercase()) {
+                    "PRO" -> SubscriptionPlan.PRO
+                    "BUSINESS" -> SubscriptionPlan.BUSINESS
+                    else -> SubscriptionPlan.FREE
+                }
+                val successMsg = if (_currentLanguage.value == Language.BN) "রেজিস্ট্রেশন সফল হয়েছে!" else "Registration successful!"
+                _toastMessage.value = successMsg
+                onResult(true, successMsg)
+            }.onFailure { err ->
+                val errMsg = err.message ?: "Registration failed"
+                _toastMessage.value = errMsg
+                onResult(false, errMsg)
+            }
+        }
+    }
+
+    fun logout() {
+        _currentUser.value = null
+        _userPlan.value = SubscriptionPlan.FREE
+        _toastMessage.value = if (_currentLanguage.value == Language.BN) "সফলভাবে লগআউট হয়েছেন।" else "Logged out successfully."
+    }
+
+    fun updateUser(user: UserEntity) {
+        viewModelScope.launch {
+            repository.updateUser(user)
+            if (_currentUser.value?.id == user.id) {
+                _currentUser.value = user
+                _userPlan.value = when (user.plan.uppercase()) {
+                    "PRO" -> SubscriptionPlan.PRO
+                    "BUSINESS" -> SubscriptionPlan.BUSINESS
+                    else -> SubscriptionPlan.FREE
+                }
+            }
+            _toastMessage.value = if (_currentLanguage.value == Language.BN) "ইউজার আপডেট সম্পন্ন হয়েছে।" else "User updated."
+        }
+    }
+
+    fun toggleUserStatus(user: UserEntity) {
+        updateUser(user.copy(isActive = !user.isActive))
+    }
+
+    fun toggleUserRole(user: UserEntity) {
+        val newRole = if (user.role.uppercase() == "ADMIN") "USER" else "ADMIN"
+        updateUser(user.copy(role = newRole))
+    }
+
+    fun changeUserPlan(user: UserEntity, newPlan: String) {
+        updateUser(user.copy(plan = newPlan))
+    }
+
+    fun deleteUser(userId: Long) {
+        viewModelScope.launch {
+            if (_currentUser.value?.id == userId) {
+                logout()
+            }
+            repository.deleteUser(userId)
+            _toastMessage.value = if (_currentLanguage.value == Language.BN) "ইউজার মুছে ফেলা হয়েছে।" else "User deleted."
+        }
+    }
+
+    fun loginWithGoogle(name: String, email: String, onResult: (Boolean, String) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val user = repository.loginOrRegisterGoogle(name, email)
+            _currentUser.value = user
+            _userPlan.value = when (user.plan.uppercase()) {
+                "PRO" -> SubscriptionPlan.PRO
+                "BUSINESS" -> SubscriptionPlan.BUSINESS
+                else -> SubscriptionPlan.FREE
+            }
+            val msg = if (_currentLanguage.value == Language.BN) "গুগল অ্যাকাউন্ট দিয়ে স্বাগতম, ${user.name}!" else "Welcome via Google, ${user.name}!"
+            _toastMessage.value = msg
+            onResult(true, msg)
+        }
+    }
+
+    fun claimDailyPoints() {
+        val user = _currentUser.value ?: return
+        viewModelScope.launch {
+            val result = repository.claimDailyReward(user.id)
+            result.onSuccess { added ->
+                val updated = repository.getUserById(user.id)
+                _currentUser.value = updated
+                _toastMessage.value = if (_currentLanguage.value == Language.BN) "🎉 অভিনন্দন! দৈনিক $added ফ্রি পয়েন্ট সংগ্রহ সম্পন্ন হয়েছে।" else "🎉 Success! Claimed $added daily free points."
+            }.onFailure { err ->
+                _toastMessage.value = err.message ?: "Failed"
+            }
+        }
+    }
+
+    fun claimMonthlyBonus() {
+        val user = _currentUser.value ?: return
+        viewModelScope.launch {
+            val result = repository.claimMonthlyReward(user.id)
+            result.onSuccess { added ->
+                val updated = repository.getUserById(user.id)
+                _currentUser.value = updated
+                _toastMessage.value = if (_currentLanguage.value == Language.BN) "🌟 অভিনন্দন! মাসিক $added বোনাস পয়েন্ট সংগ্রহ সম্পন্ন হয়েছে।" else "🌟 Success! Claimed $added monthly bonus points."
+            }.onFailure { err ->
+                _toastMessage.value = err.message ?: "Failed"
+            }
+        }
+    }
+
+    fun purchasePointsPack(pointsCount: Int, packTitle: String) {
+        val user = _currentUser.value ?: return
+        viewModelScope.launch {
+            repository.addPointsToUser(user.id, pointsCount)
+            val updated = repository.getUserById(user.id)
+            _currentUser.value = updated
+            _toastMessage.value = if (_currentLanguage.value == Language.BN) "✅ সফলভাবে $packTitle ($pointsCount পয়েন্ট) কেনা সম্পন্ন হয়েছে!" else "✅ Successfully purchased $packTitle ($pointsCount points)!"
+        }
+    }
+
+    fun upgradeToProPlan() {
+        val user = _currentUser.value ?: return
+        viewModelScope.launch {
+            val updated = user.copy(plan = "PRO", points = user.points + 200)
+            repository.updateUser(updated)
+            _currentUser.value = updated
+            _userPlan.value = SubscriptionPlan.PRO
+            _toastMessage.value = if (_currentLanguage.value == Language.BN) "🚀 অভিনন্দন! আপনার প্রো সাবস্ক্রিপশন চালু হয়েছে (+২০০ বোনাস পয়েন্ট)।" else "🚀 Congratulations! Pro Subscription activated with +200 bonus points."
+        }
+    }
+
+    fun adminAddPoints(userId: Long, amount: Int) {
+        viewModelScope.launch {
+            repository.addPointsToUser(userId, amount)
+            if (_currentUser.value?.id == userId) {
+                val updated = repository.getUserById(userId)
+                _currentUser.value = updated
+            }
+            _toastMessage.value = if (_currentLanguage.value == Language.BN) "ইউজারের অ্যাকাউন্টে $amount পয়েন্ট যোগ করা হয়েছে।" else "Added $amount points to user."
+        }
+    }
+
+    fun updateAdminPointPricing(
+        pointsPricePer100: Double,
+        proPlanPrice: Double,
+        dailyReward: Int,
+        monthlyBonus: Int,
+        pointsPerGen: Int,
+        currency: String
+    ) {
+        val current = adminConfig.value ?: AdminConfigEntity()
+        updateAdminConfig(
+            current.copy(
+                pointsPricePer100 = pointsPricePer100,
+                proPlanPrice = proPlanPrice,
+                dailyFreePoints = dailyReward,
+                monthlyBonusPoints = monthlyBonus,
+                pointsPerGeneration = pointsPerGen,
+                currency = currency
+            )
+        )
+        _toastMessage.value = if (_currentLanguage.value == Language.BN) "পয়েন্টের দাম ও সিস্টেম সেটিংস আপডেট হয়েছে!" else "Point pricing and rules updated!"
     }
 }

@@ -49,7 +49,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.AppDestination
+import com.example.ui.components.AuthDialog
 import com.example.ui.components.GenerationProgressDialog
+import com.example.ui.components.UserProfileBottomSheet
 import com.example.ui.components.WebForgeBottomBar
 import com.example.ui.components.WebForgeTopBar
 import com.example.ui.screens.AdminPanelScreen
@@ -59,6 +61,7 @@ import com.example.ui.screens.DeploymentsScreen
 import com.example.ui.screens.ProjectsScreen
 import com.example.ui.screens.TemplatesScreen
 import com.example.ui.screens.WorkspaceScreen
+import com.example.ui.screens.WorkspaceSettingsScreen
 import com.example.ui.theme.CyanAccent
 import com.example.ui.theme.IndigoPrimary
 import com.example.ui.theme.MyApplicationTheme
@@ -86,6 +89,7 @@ fun MainAppContent(viewModel: WebForgeViewModel) {
 
     val currentLanguage by viewModel.currentLanguage.collectAsState()
     val userPlan by viewModel.userPlan.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
     val allProjects by viewModel.allProjects.collectAsState()
     val activeProject by viewModel.activeProject.collectAsState()
     val activeFiles by viewModel.activeProjectFiles.collectAsState()
@@ -95,6 +99,8 @@ fun MainAppContent(viewModel: WebForgeViewModel) {
     val toastMessage by viewModel.toastMessage.collectAsState()
 
     var showBroadcastBanner by remember { mutableStateOf(true) }
+    var showAuthDialog by remember { mutableStateOf(false) }
+    var showProfileDrawer by remember { mutableStateOf(false) }
 
     // Toast message handling
     LaunchedEffect(toastMessage) {
@@ -114,8 +120,12 @@ fun MainAppContent(viewModel: WebForgeViewModel) {
             WebForgeTopBar(
                 currentLanguage = currentLanguage,
                 userPlan = userPlan,
+                currentUser = currentUser,
                 onLanguageChange = { viewModel.setLanguage(it) },
-                onNavigateDestination = { currentDestination = it }
+                onNavigateDestination = { currentDestination = it },
+                onOpenAuth = { showAuthDialog = true },
+                onLogout = { viewModel.logout() },
+                onOpenProfileDrawer = { showProfileDrawer = true }
             )
         },
         bottomBar = {
@@ -235,6 +245,14 @@ fun MainAppContent(viewModel: WebForgeViewModel) {
                             }
                         )
                     }
+                    AppDestination.SETTINGS -> {
+                        WorkspaceSettingsScreen(
+                            viewModel = viewModel,
+                            language = currentLanguage,
+                            onBack = { currentDestination = AppDestination.DASHBOARD },
+                            onNavigate = { currentDestination = it }
+                        )
+                    }
                     AppDestination.ADMIN -> {
                         AdminPanelScreen(
                             viewModel = viewModel,
@@ -246,7 +264,8 @@ fun MainAppContent(viewModel: WebForgeViewModel) {
                         BillingScreen(
                             viewModel = viewModel,
                             userPlan = userPlan,
-                            language = currentLanguage
+                            language = currentLanguage,
+                            onBack = { currentDestination = AppDestination.DASHBOARD }
                         )
                     }
                 }
@@ -259,4 +278,25 @@ fun MainAppContent(viewModel: WebForgeViewModel) {
         currentStep = currentGenStep,
         lang = currentLanguage
     )
+
+    // User Login / Registration Dialog
+    if (showAuthDialog) {
+        AuthDialog(
+            viewModel = viewModel,
+            language = currentLanguage,
+            onDismiss = { showAuthDialog = false }
+        )
+    }
+
+    // Lovable Profile Drawer / Bottom Sheet
+    if (showProfileDrawer && currentUser != null) {
+        UserProfileBottomSheet(
+            currentUser = currentUser!!,
+            language = currentLanguage,
+            onDismiss = { showProfileDrawer = false },
+            onNavigate = { currentDestination = it },
+            onClaimDaily = { viewModel.claimDailyPoints() },
+            onLogout = { viewModel.logout() }
+        )
+    }
 }

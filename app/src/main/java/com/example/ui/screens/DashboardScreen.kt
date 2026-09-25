@@ -21,28 +21,36 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Launch
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Launch
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +58,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -74,9 +83,13 @@ fun DashboardScreen(
     onOpenWorkspace: (Long) -> Unit,
     onNavigate: (AppDestination) -> Unit
 ) {
+    val currentUser by viewModel.currentUser.collectAsState()
+    val isBn = language == Language.BN
+    val userFirstName = currentUser?.name?.split(" ")?.firstOrNull() ?: "Juwel"
+
     var promptInput by remember {
         mutableStateOf(
-            if (language == Language.BN)
+            if (isBn)
                 "আমি একটি অনলাইন কাপড়ের দোকানের ওয়েবসাইট চাই। নাম হবে XYZ Fashion। Home, Products, Cart, Checkout, About Us এবং Contact পেজ থাকবে।"
             else
                 "Build an online clothing store named XYZ Fashion. Include Home, Products, Cart, Checkout, About Us, and Contact pages with responsive product cards, cart drawer, and order confirmation."
@@ -85,406 +98,479 @@ fun DashboardScreen(
 
     var selectedCategory by remember { mutableStateOf(WebsiteType.E_COMMERCE) }
     var websiteName by remember { mutableStateOf("") }
+    var buildModeDropdownOpen by remember { mutableStateOf(false) }
+    var selectedBuildMode by remember { mutableStateOf("Chat") }
 
-    LazyColumn(
+    // Atmospheric Lovable mesh gradient background (Matches Screenshot 1)
+    val backgroundBrush = Brush.verticalGradient(
+        colorStops = arrayOf(
+            0.0f to Color(0xFFFFFFFF),
+            0.25f to Color(0xFFF0F4FF),
+            0.50f to Color(0xFFE0E7FE),
+            0.75f to Color(0xFFF3C5FD),
+            1.0f to Color(0xFFFF528C)
+        )
+    )
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
-            .testTag("dashboard_screen"),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .background(backgroundBrush)
     ) {
-        // Hero Prompt Section
-        item {
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("hero_prompt_card")
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp)
+                .testTag("dashboard_screen"),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            item { Spacer(modifier = Modifier.height(10.dp)) }
+
+            // Pill Badge: "New | Chat with WebForge for free ->" (Matches Screenshot 1)
+            item {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color.White.copy(alpha = 0.95f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                        shadowElevation = 2.dp,
+                        modifier = Modifier
+                            .clickable { onNavigate(AppDestination.BILLING) }
+                            .testTag("hero_new_free_pill")
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(IndigoPrimary.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                tint = IndigoPrimary,
-                                modifier = Modifier.size(16.dp)
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFF2563EB)
+                            ) {
+                                Text(
+                                    text = "New",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                )
+                            }
+                            Text(
+                                text = if (isBn) "WebForge এ ফ্রি চ্যাট ও ওয়েবসাইট তৈরি করুন →" else "Chat with WebForge for free →",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF1F2937)
                             )
                         }
-                        Text(
-                            text = if (language == Language.BN) "আপনি কী ধরনের ওয়েবসাইট বানাতে চান?" else "Describe the website you want to build",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                        )
                     }
+                }
+            }
 
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Prompt Input Field
-                    OutlinedTextField(
-                        value = promptInput,
-                        onValueChange = { promptInput = it },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(130.dp)
-                            .testTag("main_prompt_input"),
-                        placeholder = {
-                            Text(
-                                AppStrings.get("describe_prompt_hint", language),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = IndigoPrimary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
+            // Headline: "Ready to build, Juwel?" (Matches Screenshot 1)
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = if (isBn) "$userFirstName, আজ কী তৈরি করবেন?" else "Ready to build, $userFirstName?",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFF111827),
+                        letterSpacing = (-0.5).sp
                     )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = if (isBn)
+                            "দৈনিক ৫ ফ্রি পয়েন্ট ও ৩০ পয়েন্ট মাসিক বোনাস দিয়ে এখনই শুরু করুন!"
+                        else
+                            "Start building with your daily 5 free points & monthly 30 bonus points!",
+                        fontSize = 12.sp,
+                        color = Color(0xFF4B5563)
+                    )
+                }
+            }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Optional Site Name
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
+            // Floating Prompt Card (Matches Screenshot 1)
+            item {
+                Card(
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.95f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("lovable_prompt_card")
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        // Text Input
                         OutlinedTextField(
-                            value = websiteName,
-                            onValueChange = { websiteName = it },
-                            label = { Text(if (language == Language.BN) "ওয়েবসাইটের নাম (ঐচ্ছিক)" else "Website Name (Optional)", fontSize = 11.sp) },
-                            placeholder = { Text("e.g. XYZ Fashion", fontSize = 11.sp) },
-                            singleLine = true,
+                            value = promptInput,
+                            onValueChange = { promptInput = it },
+                            placeholder = {
+                                Text(
+                                    text = if (isBn) "আপনার ব্যবসার জন্য কী ওয়েবসাইট দরকার লিখুন..." else "Turn a rough idea into a complete website...",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF6B7280)
+                                )
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent
+                            ),
                             modifier = Modifier
-                                .weight(1f)
-                                .testTag("site_name_input"),
-                            shape = RoundedCornerShape(10.dp)
+                                .fillMaxWidth()
+                                .height(110.dp)
+                                .testTag("main_prompt_input")
                         )
 
-                        Button(
-                            onClick = {
-                                if (promptInput.isNotBlank()) {
-                                    viewModel.generateWebsite(
-                                        prompt = promptInput,
-                                        name = websiteName.ifBlank { null },
-                                        category = selectedCategory,
-                                        onComplete = { newId ->
-                                            onOpenWorkspace(newId)
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Inner Bottom Bar with +, Chat v, Audio icon & Send Button (Matches Screenshot 1)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Left: Plus icon
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFFF3F4F6),
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clickable { }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "Add context",
+                                        tint = Color(0xFF374151),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            // Center: Chat v selector dropdown (Matches Screenshot 1)
+                            Box {
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = Color.Transparent,
+                                    modifier = Modifier.clickable { buildModeDropdownOpen = true }
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = selectedBuildMode,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF2563EB)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.KeyboardArrowDown,
+                                            contentDescription = null,
+                                            tint = Color(0xFF2563EB),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+
+                                DropdownMenu(
+                                    expanded = buildModeDropdownOpen,
+                                    onDismissRequest = { buildModeDropdownOpen = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Chat (কথোপকথন ও আইডিয়া)") },
+                                        onClick = {
+                                            selectedBuildMode = "Chat"
+                                            buildModeDropdownOpen = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Build (সম্পূর্ণ ওয়েবসাইট তৈরি)") },
+                                        onClick = {
+                                            selectedBuildMode = "Build"
+                                            buildModeDropdownOpen = false
                                         }
                                     )
                                 }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier
-                                .height(56.dp)
-                                .testTag("generate_website_btn")
-                        ) {
-                            Icon(Icons.Default.RocketLaunch, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                AppStrings.get("generate_button", language),
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
+                            }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Example Prompts Chips
-                    Text(
-                        text = if (language == Language.BN) "উদাহরণ প্রম্পটস:" else "Example prompts:",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Bold
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        val examples = listOf(
-                            WebsiteType.E_COMMERCE,
-                            WebsiteType.SPORTS_CRICKET,
-                            WebsiteType.RESTAURANT,
-                            WebsiteType.SAAS_LANDING,
-                            WebsiteType.PORTFOLIO
-                        )
-                        examples.forEach { cat ->
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (selectedCategory == cat) IndigoPrimary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant,
-                                border = androidx.compose.foundation.BorderStroke(
-                                    1.dp,
-                                    if (selectedCategory == cat) IndigoPrimary else MaterialTheme.colorScheme.outline
-                                ),
-                                modifier = Modifier
-                                    .clickable {
-                                        selectedCategory = cat
-                                        promptInput = cat.getSamplePrompt(language)
-                                    }
-                                    .testTag("example_prompt_${cat.id}")
+                            // Right: Waveform icon & Send Button
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Text(
-                                    text = "${cat.getTitle(language)} ⚡",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Medium,
-                                        color = if (selectedCategory == cat) IndigoPrimary else MaterialTheme.colorScheme.onSurface
-                                    ),
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                )
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color.Transparent,
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clickable { }
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.GraphicEq,
+                                            contentDescription = "Voice input",
+                                            tint = Color(0xFF6B7280),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color(0xFF1E1B4B),
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clickable {
+                                            if (promptInput.isNotBlank()) {
+                                                viewModel.generateWebsite(
+                                                    prompt = promptInput,
+                                                    name = websiteName.ifBlank { null },
+                                                    category = selectedCategory,
+                                                    onComplete = { newId ->
+                                                        onOpenWorkspace(newId)
+                                                    }
+                                                )
+                                            }
+                                        }
+                                        .testTag("hero_generate_btn")
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                            contentDescription = "Generate",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-        // Stats Overview Row
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                StatCard(
-                    title = if (language == Language.BN) "মোট প্রজেক্ট" else "Total Projects",
-                    value = "${projects.size}",
-                    subtitle = if (language == Language.BN) "সম্পূর্ণ তৈরি" else "Fully Generated",
-                    color = IndigoPrimary,
-                    modifier = Modifier.weight(1f)
-                )
-                StatCard(
-                    title = if (language == Language.BN) "লাইভ ডিপ্লয়" else "Active Deployments",
-                    value = "${projects.count { it.isDeployed }}",
-                    subtitle = "Edge CDN Live",
-                    color = EmeraldSuccess,
-                    modifier = Modifier.weight(1f)
-                )
-                StatCard(
-                    title = if (language == Language.BN) "এআই জেনারেশন" else "AI Generations",
-                    value = "50 / 50",
-                    subtitle = "PRO Plan Ready",
-                    color = CyanAccent,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-
-        // Recent Projects Section Header
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (language == Language.BN) "সাম্প্রতিক প্রজেক্টসমূহ" else "Recent Projects",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                )
-                Text(
-                    text = if (language == Language.BN) "সব দেখুন" else "View All",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        color = IndigoPrimary,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    modifier = Modifier
-                        .clickable { onNavigate(AppDestination.PROJECTS) }
-                        .testTag("view_all_projects_btn")
-                )
-            }
-        }
-
-        // Project Cards
-        if (projects.isEmpty()) {
+            // Quick Daily / Monthly Reward Pill (Matches User Request: প্রতিদিন ৫ ও মাসে ৩০ পয়েন্ট)
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (language == Language.BN) "এখনও কোনো প্রজেক্ট তৈরি হয়নি। উপরের প্রম্পট দিয়ে শুরু করুন!" else "No projects yet. Enter a prompt above to build your first website!",
-                        style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    )
-                }
-            }
-        } else {
-            items(projects) { project ->
-                ProjectCardItem(
-                    project = project,
-                    onOpen = {
-                        viewModel.selectProject(project.id)
-                        onOpenWorkspace(project.id)
-                    },
-                    onDuplicate = { viewModel.duplicateProject(project.id) },
-                    onDelete = { viewModel.deleteProject(project.id) },
-                    onDeploy = {
-                        viewModel.selectProject(project.id)
-                        viewModel.deployActiveProject(null) {}
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun StatCard(
-    title: String,
-    value: String,
-    subtitle: String,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = modifier
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Text(title, style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant))
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(value, style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold, color = color))
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(subtitle, style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp))
-        }
-    }
-}
-
-@Composable
-fun ProjectCardItem(
-    project: ProjectEntity,
-    onOpen: () -> Unit,
-    onDuplicate: () -> Unit,
-    onDelete: () -> Unit,
-    onDeploy: () -> Unit
-) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onOpen() }
-            .testTag("project_card_${project.id}")
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                try {
-                                    Color(android.graphics.Color.parseColor(project.primaryColor))
-                                } catch (_: Throwable) {
-                                    IndigoPrimary
-                                }
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("⚡", fontSize = 18.sp)
-                    }
-                    Column {
-                        Text(
-                            text = project.name,
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-                        )
-                        Text(
-                            text = "${project.slug}.webforge.app",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 10.sp
-                            )
-                        )
-                    }
-                }
-
                 Surface(
-                    color = if (project.isDeployed) EmeraldSuccess.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White.copy(alpha = 0.9f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                    shadowElevation = 2.dp,
+                    modifier = Modifier.fillMaxWidth().testTag("points_quick_bar")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("🪙", fontSize = 16.sp)
+                            Column {
+                                Text(
+                                    text = "${currentUser?.points ?: 0} " + (if (isBn) "পয়েন্ট বাকি" else "Points"),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFB45309)
+                                )
+                                Text(
+                                    text = if (isBn) "প্রতিদিন ৫ ও মাসে ৩০ ফ্রি পয়েন্ট" else "Daily 5 & monthly 30 free points",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF6B7280)
+                                )
+                            }
+                        }
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedButton(
+                                onClick = { viewModel.claimDailyPoints() },
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                modifier = Modifier.height(30.dp).testTag("quick_claim_daily")
+                            ) {
+                                Text("🎁 " + (if (isBn) "দৈনিক +৫" else "+5 Pts"), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            Button(
+                                onClick = { onNavigate(AppDestination.BILLING) },
+                                colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                modifier = Modifier.height(30.dp).testTag("quick_get_pro")
+                            ) {
+                                Text(if (isBn) "প্রো কিনুন 🚀" else "Pro 🚀", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Quick Category Chips
+            item {
+                Column {
+                    Text(
+                        text = if (isBn) "জনপ্রিয় ক্যাটাগরি" else "Popular Templates & Categories",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        WebsiteType.values().forEach { type ->
+                            val isSelected = selectedCategory == type
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected) Color(0xFF1E1B4B) else Color.White.copy(alpha = 0.85f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) Color(0xFF1E1B4B) else Color(0xFFE5E7EB)),
+                                modifier = Modifier.clickable { selectedCategory = type }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (isBn) type.titleBn else type.titleEn,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color.White else Color(0xFF374151)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Projects Section
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (project.isDeployed) "🟢 Live" else "🟡 Sandbox",
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = if (project.isDeployed) EmeraldSuccess else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        text = if (isBn) "আপনার প্রকল্পসমূহ (${projects.size})" else "Recent Projects (${projects.size})",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
                     )
+                    TextButton(onClick = { onNavigate(AppDestination.PROJECTS) }) {
+                        Text(if (isBn) "সব দেখুন" else "View all", fontSize = 12.sp, color = IndigoPrimary)
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = project.description,
-                style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
-                maxLines = 2
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    IconButton(
-                        onClick = onOpen,
-                        modifier = Modifier.size(32.dp).testTag("open_project_${project.id}")
+            if (projects.isEmpty()) {
+                item {
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.85f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Launch, contentDescription = "Open", modifier = Modifier.size(16.dp))
-                    }
-                    IconButton(
-                        onClick = onDuplicate,
-                        modifier = Modifier.size(32.dp).testTag("duplicate_project_${project.id}")
-                    ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Duplicate", modifier = Modifier.size(16.dp))
-                    }
-                    IconButton(
-                        onClick = onDelete,
-                        modifier = Modifier.size(32.dp).testTag("delete_project_${project.id}")
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                        Column(
+                            modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text("✨", fontSize = 28.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = if (isBn) "এখনও কোনো প্রজেক্ট নেই। ওপরের বক্সে লিখে তৈরি করুন!" else "No projects yet. Type in the box above to generate your first website!",
+                                fontSize = 12.sp,
+                                color = Color(0xFF6B7280)
+                            )
+                        }
                     }
                 }
+            } else {
+                items(projects.take(4)) { project ->
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenWorkspace(project.id) }
+                            .testTag("project_item_${project.id}")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(IndigoPrimary.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("🌐", fontSize = 16.sp)
+                                }
+                                Column {
+                                    Text(
+                                        text = project.name,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF111827)
+                                    )
+                                    Text(
+                                        text = project.category.replace("_", " "),
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF6B7280)
+                                    )
+                                }
+                            }
 
-                Button(
-                    onClick = onOpen,
-                    colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.height(36.dp).testTag("builder_open_btn_${project.id}")
-                ) {
-                    Text("Open Builder", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                if (project.isDeployed) {
+                                    Surface(
+                                        color = Color(0xFFDCFCE7),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "LIVE",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF15803D),
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+
+                                IconButton(
+                                    onClick = { onOpenWorkspace(project.id) },
+                                    modifier = Modifier.size(30.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = "Open",
+                                        tint = Color(0xFF4B5563),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
+
+            item { Spacer(modifier = Modifier.height(70.dp)) }
         }
     }
 }

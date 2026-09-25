@@ -9,6 +9,7 @@ import com.example.data.local.entity.AdminConfigEntity
 import com.example.data.local.entity.ChatMessageEntity
 import com.example.data.local.entity.ProjectEntity
 import com.example.data.local.entity.ProjectFileEntity
+import com.example.data.local.entity.UserEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -90,4 +91,46 @@ interface AdminConfigDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateConfig(config: AdminConfigEntity)
+}
+
+@Dao
+interface UserDao {
+    @Query("SELECT * FROM users ORDER BY createdAt DESC")
+    fun getAllUsers(): Flow<List<UserEntity>>
+
+    @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
+    suspend fun getUserByEmail(email: String): UserEntity?
+
+    @Query("SELECT * FROM users WHERE email = :email AND passwordHash = :password LIMIT 1")
+    suspend fun login(email: String, password: String): UserEntity?
+
+    @Query("SELECT * FROM users WHERE id = :id LIMIT 1")
+    suspend fun getUserById(id: Long): UserEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertUser(user: UserEntity): Long
+
+    @Update
+    suspend fun updateUser(user: UserEntity)
+
+    @Query("DELETE FROM users WHERE id = :id")
+    suspend fun deleteUser(id: Long)
+
+    @Query("SELECT COUNT(*) FROM users")
+    fun getUserCount(): Flow<Int>
+
+    @Query("UPDATE users SET points = points + :pointsAdded WHERE id = :userId")
+    suspend fun addPoints(userId: Long, pointsAdded: Int)
+
+    @Query("UPDATE users SET points = MAX(0, points - :pointsDeducted) WHERE id = :userId")
+    suspend fun deductPoints(userId: Long, pointsDeducted: Int)
+
+    @Query("UPDATE users SET points = :newPoints WHERE id = :userId")
+    suspend fun setPoints(userId: Long, newPoints: Int)
+
+    @Query("UPDATE users SET points = points + :pointsAdded, lastDailyClaim = :timestamp WHERE id = :userId")
+    suspend fun claimDailyReward(userId: Long, pointsAdded: Int, timestamp: Long)
+
+    @Query("UPDATE users SET points = points + :pointsAdded, lastMonthlyClaim = :timestamp WHERE id = :userId")
+    suspend fun claimMonthlyReward(userId: Long, pointsAdded: Int, timestamp: Long)
 }
