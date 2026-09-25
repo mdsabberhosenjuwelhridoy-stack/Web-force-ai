@@ -1,0 +1,6 @@
+{
+  "name": "WebForge",
+  "description": "Full-stack AI Website Builder platform with live responsive preview, multi-page generator, visual code editor, AI error fixer, and one-click deployment.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
